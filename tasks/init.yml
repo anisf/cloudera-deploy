@@ -14,32 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Check versions
-- name: Get Python packages
-  register: __python_env_packages
-  command: pip freeze
-
-- name: Get Ansible Collections
-  register: __ansible_collection_list
-  command: ansible-galaxy collection list
-
-- name: Get Ansible Roles
-  register: __ansible_role_list
-  command: ansible-galaxy role list
-
-- name: Log Runtime information
-  ansible.builtin.debug:
-    msg: "{{ __runtime_item }}"
-  loop_control:
-    loop_var: __runtime_item
-  loop:
-    - "Ansible Version: {{ ansible_version }}"
-    - "Ansible Collections: {{ __ansible_collection_list.stdout }}"
-    - "Ansible Roles: {{ __ansible_role_list.stdout }}"
-    - "Python Version: {{ ansible_python_version }}"
-    - "Python Packages: {{ __python_env_packages.stdout }}"
-    - "Runner Version: '{{ lookup('env', 'CLDR_BUILD_VER') }}'"
-
 # Check path
 - name: Check a Definition path has been supplied
   ansible.builtin.assert:
@@ -250,65 +224,65 @@
     fail_msg: "The terraform.auto_remote_state variable must be a boolean variable"
     quiet: yes
 
-# SSH
-- name: Use default SSH public key id
-  when: globals.ssh.public_key_id is undefined
-  ansible.builtin.set_fact:
-    globals: "{{ globals | default({}) | combine(__default_ssh_key_id, recursive=True) }}"
-  vars:
-    __default_ssh_key_id:
-      ssh:
-        public_key_id: "{{ globals.name_prefix }}"
+# # SSH
+# - name: Use default SSH public key id
+#   when: globals.ssh.public_key_id is undefined
+#   ansible.builtin.set_fact:
+#     globals: "{{ globals | default({}) | combine(__default_ssh_key_id, recursive=True) }}"
+#   vars:
+#     __default_ssh_key_id:
+#       ssh:
+#         public_key_id: "{{ globals.name_prefix }}"
 
-- name: Generate SSH public and private keys
-  when: (globals.ssh.public_key_file is undefined or globals.ssh.public_key_file | length < 3) and globals.ssh.public_key_text is undefined
-  block:
-    - name: Generate a SSH keypair (public and private keys)
-      register: __generated_ssh_keys
-      community.crypto.openssh_keypair:
-        path: "{{ [default_sshkey_path, __generated_keypair_name] | path_join }}"
-        comment: "{{ globals.name_prefix }} (auto-generated)"
-        type: rsa
-        size: 4096
-        regenerate: never
-        force: no
-      vars:
-        __generated_keypair_name: "{{ globals.name_prefix + default_ssh_key_suffix }}"
+# - name: Generate SSH public and private keys
+#   when: (globals.ssh.public_key_file is undefined or globals.ssh.public_key_file | length < 3) and globals.ssh.public_key_text is undefined
+#   block:
+#     - name: Generate a SSH keypair (public and private keys)
+#       register: __generated_ssh_keys
+#       community.crypto.openssh_keypair:
+#         path: "{{ [default_sshkey_path, __generated_keypair_name] | path_join }}"
+#         comment: "{{ globals.name_prefix }} (auto-generated)"
+#         type: rsa
+#         size: 4096
+#         regenerate: never
+#         force: no
+#       vars:
+#         __generated_keypair_name: "{{ globals.name_prefix + default_ssh_key_suffix }}"
 
-    - name: Set facts for the generated SSH keypair details
-      ansible.builtin.set_fact:
-        globals: "{{ globals | default({}) | combine(__generated_keypair, recursive=True) }}"
-      vars:
-        __generated_keypair:
-          ssh:
-            private_key_file: "{{ __generated_ssh_keys.filename }}"
-            public_key_file: "{{ [ __generated_ssh_keys.filename, 'pub' ] | join('.') }}"
+#     - name: Set facts for the generated SSH keypair details
+#       ansible.builtin.set_fact:
+#         globals: "{{ globals | default({}) | combine(__generated_keypair, recursive=True) }}"
+#       vars:
+#         __generated_keypair:
+#           ssh:
+#             private_key_file: "{{ __generated_ssh_keys.filename }}"
+#             public_key_file: "{{ [ __generated_ssh_keys.filename, 'pub' ] | join('.') }}"
 
-- name: Load SSH public key file to text
-  when: globals.ssh.public_key_file is defined
-  ansible.builtin.set_fact:
-    globals: "{{ globals | default({}) | combine(__public_key_globals , recursive=True) }}"
-  vars:
-    __public_key_globals:
-      ssh:
-        public_key_text: "{{ lookup('file', globals.ssh.public_key_file ) | default(omit) }}"
+# - name: Load SSH public key file to text
+#   when: globals.ssh.public_key_file is defined
+#   ansible.builtin.set_fact:
+#     globals: "{{ globals | default({}) | combine(__public_key_globals , recursive=True) }}"
+#   vars:
+#     __public_key_globals:
+#       ssh:
+#         public_key_text: "{{ lookup('file', globals.ssh.public_key_file ) | default(omit) }}"
 
-- name: Validate SSH Private Key File has acceptable permissions
-  when: globals.ssh.private_key_file is defined
-  block:
-    - name: Get information for SSH Private Key File
-      ansible.builtin.stat:
-        path: "{{ globals.ssh.private_key_file }}"
-      register: __private_key_file_stat
+# - name: Validate SSH Private Key File has acceptable permissions
+#   when: globals.ssh.private_key_file is defined
+#   block:
+#     - name: Get information for SSH Private Key File
+#       ansible.builtin.stat:
+#         path: "{{ globals.ssh.private_key_file }}"
+#       register: __private_key_file_stat
 
-    - name: Assert that SSH Private Key has valid permissions
-      ansible.builtin.assert:
-        that:
-          - __private_key_file_stat.stat.mode == '0400' or __private_key_file_stat.stat.mode == '0600'
-        fail_msg:
-          - "SSH Private Key at {{ __private_key_file_stat.stat.path }} has invalid permissions"
-          - "Permissions are {{ __private_key_file_stat.stat.mode }}"
-          - "Permissions should be 0400 or 0600"
+#     - name: Assert that SSH Private Key has valid permissions
+#       ansible.builtin.assert:
+#         that:
+#           - __private_key_file_stat.stat.mode == '0400' or __private_key_file_stat.stat.mode == '0600'
+#         fail_msg:
+#           - "SSH Private Key at {{ __private_key_file_stat.stat.path }} has invalid permissions"
+#           - "Permissions are {{ __private_key_file_stat.stat.mode }}"
+#           - "Permissions should be 0400 or 0600"
 
 # Parcel Distro
 - name: Determine preferred Parcel Distribution
@@ -392,7 +366,7 @@
     - use_download_mirror | default(default_enable_download_mirror) | bool
     - "'teardown' not in ansible_run_tags"
   ansible.builtin.include_role:
-    name: cloudera_deploy
+    name: cloudera.deploy
     tasks_from: prepare_download_mirror
 
 # Ansible tempfile doesn't appear to work well on ansible-runner
@@ -471,7 +445,7 @@
     - name: Create remote state resources
       when: "'teardown' not in ansible_run_tags"
       ansible.builtin.include_role:
-        name: cloudera_deploy
+        name: cloudera.deploy
         tasks_from: auto_terraform_state
 
 - name: Prepare for Download Mirror Population if requested and necessary
@@ -479,5 +453,5 @@
     - use_download_mirror | default(default_enable_download_mirror) | bool
     - "'teardown' not in ansible_run_tags"
   ansible.builtin.include_role:
-    name: cloudera_deploy
+    name: cloudera.deploy
     tasks_from: prepare_download_mirror

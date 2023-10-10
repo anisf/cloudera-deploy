@@ -13,9 +13,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 - name: Load Definition file
-  ansible.builtin.include_vars:
+  include_vars:
     file: "{{ init__cluster_definition_file }}"
     name: _pre_template_cluster
   delegate_to: "{{ __play_host }}"

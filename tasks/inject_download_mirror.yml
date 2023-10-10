@@ -69,7 +69,7 @@
       ansible.builtin.replace:
         name: "{{ __tmp_cluster_file }}"
         regexp: '^(\s+\-\s)https://archive\.cloudera\.com(\/.+)$'
-        replace: '\1http://{{ groups.custom_repo | first }}\2'
+        replace: '\1http://{{ hostvars[groups.custom_repo[0]].ansible_host }}\2'
 
     - name: Set Cluster Definition file to Temp file with parcel cache entries
       ansible.builtin.set_fact:
